@@ -10,7 +10,8 @@ import java.util.StringTokenizer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
-import javax.swing.Timer;
+import javax.swing.JOptionPane;
+import java.util.*;
 
 import mmcorej.CMMCore;
 import mmcorej.CharVector;
@@ -24,13 +25,66 @@ import org.micromanager.api.ScriptInterface;
 public class HiwinControlFrame extends javax.swing.JFrame {
     private final ScriptInterface gui_;
     private final CMMCore core_;
+    String port_kohzu;
+    String port_hiwin;
+    String command;
+    String cinit;
+    String hiwinTerminator = "}";
+    String kohzuTerminator = "\r\n";
+    String hiwinCommand = "";
+    String kohzuCommand = "";
+    
+    String z_axis = "2";
+    String x_axis = "1"; //02A limit 291900 
+    
+    int kohzu_posZ = 0;
+    int kohzu_posX = 0;
     /**
      * Creates new form HiwinControlFrame
      */
+    private void clearBuffer(String port) {
+        try {
+            CharVector answer;
+            do {
+                answer = core_.readFromSerialPort(port);
+            } while(answer.capacity() > 0);
+        } catch (Exception ex) {
+            Logger.getLogger(HiwinControlFrame.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+// read kohzu stage position from axis of port
+    private int readKohzu(String port, String axis) {
+        try {
+            String answer;
+            clearBuffer(port);
+            core_.setSerialPortCommand(port, "\002RDP" + axis, kohzuTerminator);
+            Thread.sleep(10);
+            answer = core_.getSerialPortAnswer(port, "\r\n");
+            StringTokenizer st = new StringTokenizer(answer);
+            if(st.nextToken().equals("C")) {
+                    st.nextToken();
+                    return Integer.parseInt(st.nextToken());
+            }
+        } catch (Exception ex) {
+            Logger.getLogger(HiwinControlFrame.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return Integer.MIN_VALUE;
+    }
+    public class task_kohzu extends TimerTask {
+        public void run() {
+            try{
+                kohzu_posZ = readKohzu(port_kohzu,z_axis);
+            }catch (Exception ex) {
+                    Logger.getLogger(HiwinControlFrame.class.getName()).log(Level.SEVERE, null, ex);
+                }  
+        }
+    }
     public HiwinControlFrame(ScriptInterface gui) {
         gui_ = gui;
         core_ = gui_.getMMCore();
         initComponents();
+        
+        
     }
 
     
@@ -46,85 +100,232 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initComponents() {
 
+        stop = new javax.swing.JButton();
+        jScrollPane1 = new javax.swing.JScrollPane();
+        jPanel1 = new javax.swing.JPanel();
         sample_text = new javax.swing.JLabel();
         jComboBox_sample = new javax.swing.JComboBox();
         select = new javax.swing.JButton();
         cancel = new javax.swing.JButton();
+        jPanel3 = new javax.swing.JPanel();
+        jLabel1 = new javax.swing.JLabel();
+        jComboBox_kohzu = new javax.swing.JComboBox();
+        jLabel2 = new javax.swing.JLabel();
+        jComboBox_hiwin = new javax.swing.JComboBox();
+        jRadioButton_enable = new javax.swing.JRadioButton();
+        jRadioButton_disable = new javax.swing.JRadioButton();
         start = new javax.swing.JButton();
-        stop = new javax.swing.JButton();
-        jScrollPane1 = new javax.swing.JScrollPane();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
-        sample_text.setText("Sample ");
+        stop.setText("Stop");
+        stop.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                stopActionPerformed(evt);
+            }
+        });
+
+        jPanel1.setBorder(javax.swing.BorderFactory.createTitledBorder("Sample"));
+
+        sample_text.setText("Target");
 
         jComboBox_sample.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "1", "2", "3", "4", "5", "6", "7", "8" }));
 
         select.setText("Select");
+        select.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                selectActionPerformed(evt);
+            }
+        });
 
         cancel.setText("Cancel");
+        cancel.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                cancelActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
+        jPanel1.setLayout(jPanel1Layout);
+        jPanel1Layout.setHorizontalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(sample_text)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jComboBox_sample, javax.swing.GroupLayout.PREFERRED_SIZE, 79, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 51, Short.MAX_VALUE)
+                .addComponent(select, javax.swing.GroupLayout.PREFERRED_SIZE, 81, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(cancel, javax.swing.GroupLayout.PREFERRED_SIZE, 81, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(22, 22, 22))
+        );
+        jPanel1Layout.setVerticalGroup(
+            jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel1Layout.createSequentialGroup()
+                .addGap(0, 0, Short.MAX_VALUE)
+                .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jComboBox_sample, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(sample_text)
+                    .addComponent(select)
+                    .addComponent(cancel))
+                .addGap(64, 64, 64))
+        );
+
+        sample_text.getAccessibleContext().setAccessibleName("Sample number");
+
+        jPanel3.setBorder(javax.swing.BorderFactory.createTitledBorder("COM Port"));
+
+        jLabel1.setText("Kohzu");
+
+        jComboBox_kohzu.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "COM 1", "COM 2", "COM 3", "COM 4", "COM 5", "COM 6", "COM 7", "COM 8", "COM 9", "COM 10" }));
+
+        jLabel2.setText("RobotArm");
+
+        jComboBox_hiwin.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "COM 1", "COM 2", "COM 3", "COM 4", "COM 5", "COM 6", "COM 7", "COM 8", "COM 9", "COM 10" }));
+
+        jRadioButton_enable.setText("Enable");
+        jRadioButton_enable.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jRadioButton_enableActionPerformed(evt);
+            }
+        });
+
+        jRadioButton_disable.setSelected(true);
+        jRadioButton_disable.setText("Disable");
+        jRadioButton_disable.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jRadioButton_disableActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
+        jPanel3.setLayout(jPanel3Layout);
+        jPanel3Layout.setHorizontalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addComponent(jLabel1)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jComboBox_kohzu, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(18, 18, 18)
+                .addComponent(jLabel2)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jComboBox_hiwin, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 51, Short.MAX_VALUE)
+                .addComponent(jRadioButton_enable)
+                .addGap(58, 58, 58)
+                .addComponent(jRadioButton_disable)
+                .addGap(67, 67, 67))
+        );
+        jPanel3Layout.setVerticalGroup(
+            jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanel3Layout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel1)
+                    .addComponent(jComboBox_kohzu, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel2)
+                    .addComponent(jComboBox_hiwin, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jRadioButton_enable)
+                    .addComponent(jRadioButton_disable))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+        );
 
         start.setText("Start");
-
-        stop.setText("Stop");
+        start.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                startActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
+                .addContainerGap()
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                        .addGroup(layout.createSequentialGroup()
-                            .addGap(34, 34, 34)
-                            .addComponent(start, javax.swing.GroupLayout.PREFERRED_SIZE, 75, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGap(18, 18, 18)
-                            .addComponent(stop, javax.swing.GroupLayout.PREFERRED_SIZE, 81, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
-                            .addContainerGap()
-                            .addComponent(select)
-                            .addGap(18, 18, 18)
-                            .addComponent(cancel)))
                     .addGroup(layout.createSequentialGroup()
-                        .addGap(44, 44, 44)
-                        .addComponent(sample_text)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 655, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(0, 0, Short.MAX_VALUE))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addGap(18, 18, 18)
-                        .addComponent(jComboBox_sample, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 180, Short.MAX_VALUE)
-                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 288, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap())
+                        .addComponent(start, javax.swing.GroupLayout.PREFERRED_SIZE, 83, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(stop, javax.swing.GroupLayout.PREFERRED_SIZE, 83, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(43, 43, 43))))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
                 .addContainerGap()
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(0, 192, Short.MAX_VALUE)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(sample_text)
-                            .addComponent(jComboBox_sample, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                        .addGap(40, 40, 40)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(cancel)
-                            .addComponent(select))
-                        .addGap(18, 18, 18)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                            .addComponent(stop)
-                            .addComponent(start))
-                        .addGap(118, 118, 118))
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jScrollPane1)
-                        .addContainerGap())))
+                .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(start, javax.swing.GroupLayout.PREFERRED_SIZE, 72, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(stop, javax.swing.GroupLayout.PREFERRED_SIZE, 72, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, 75, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(19, 19, 19)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 270, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
 
-        sample_text.getAccessibleContext().setAccessibleName("Sample number");
-        select.getAccessibleContext().setAccessibleName("Select");
-        start.getAccessibleContext().setAccessibleName("Start");
-        stop.getAccessibleContext().setAccessibleName("Stop");
+        jPanel1.getAccessibleContext().setAccessibleName("Sample");
 
         pack();
     }// </editor-fold>//GEN-END:initComponents
+
+    private void jRadioButton_enableActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton_enableActionPerformed
+        jRadioButton_disable.setSelected(false);
+        if (jRadioButton_enable.isSelected()){
+            port_kohzu = jComboBox_kohzu.getSelectedItem().toString();
+            port_hiwin = jComboBox_hiwin.getSelectedItem().toString();
+            if (port_kohzu == port_hiwin) {
+                JOptionPane.showMessageDialog(null, "COM ports should be different.\n Please select again.");
+                jRadioButton_enable.setSelected(false);
+                jRadioButton_disable.setSelected(true);
+            }
+            else{// Enable timer
+            }
+        }
+        else{
+            jRadioButton_enable.setSelected(true);
+        }
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jRadioButton_enableActionPerformed
+
+    private void jRadioButton_disableActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jRadioButton_disableActionPerformed
+        jRadioButton_enable.setSelected(false);
+        if (jRadioButton_disable.isSelected()){
+            //stop timer
+            jRadioButton_enable.setSelected(false);
+        }
+        else{
+            jRadioButton_disable.setSelected(true);
+        }
+        
+        // TODO add your handling code here:
+    }//GEN-LAST:event_jRadioButton_disableActionPerformed
+
+    private void selectActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_selectActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_selectActionPerformed
+
+    private void cancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_cancelActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_cancelActionPerformed
+
+    private void startActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_startActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_startActionPerformed
+
+    private void stopActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_stopActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_stopActionPerformed
 
     /**
      * @param args the command line arguments
@@ -162,11 +363,21 @@ public class HiwinControlFrame extends javax.swing.JFrame {
 //    }
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton cancel;
+    private javax.swing.JComboBox jComboBox_hiwin;
+    private javax.swing.JComboBox jComboBox_kohzu;
     private javax.swing.JComboBox jComboBox_sample;
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel2;
+    private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanel3;
+    private javax.swing.JRadioButton jRadioButton_disable;
+    private javax.swing.JRadioButton jRadioButton_enable;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JLabel sample_text;
     private javax.swing.JButton select;
     private javax.swing.JButton start;
     private javax.swing.JButton stop;
     // End of variables declaration//GEN-END:variables
+    
+
 }
