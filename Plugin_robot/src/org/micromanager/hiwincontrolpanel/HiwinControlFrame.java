@@ -29,6 +29,7 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     String port_kohzu;
     String port_hiwin;
     boolean port_enable = false;
+    boolean kohzu_moving = false;
 
     String hiwinTerminator = "}";
     String kohzuTerminator = "\r\n";
@@ -63,8 +64,8 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     }
 // read kohzu stage position from axis of port
     private int readKohzu(String port, String axis) {
-        try {
-            String answer;
+        String answer;
+        try {          
             clearBuffer(port);
             core_.setSerialPortCommand(port, "\002RDP" + axis, kohzuTerminator);
             Thread.sleep(10);
@@ -82,14 +83,24 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     public class task_kohzu extends TimerTask {
         @Override
         public void run() {
-            try{
-                kohzu_posZ = readKohzu(port_kohzu,z_axis);
-                kohzuCommand = "\002APS" + z_axis + "/" + kohzu_speedTable + "/" + Z_target_pos + "/" + "1";//APSa/b/c/d  a:axis b:speed table number c:movement amount d:response method
-                jTextArea.append(kohzuCommand + "\n");
-                core_.setSerialPortCommand(port_kohzu, kohzuCommand, kohzuTerminator);                   
+            try{               
+                if (!kohzu_moving){
+                    kohzuCommand = "\002APS" + z_axis + "/" + kohzu_speedTable + "/" + Z_target_pos + "/" + "1";//APSa/b/c/d  a:axis b:speed table number c:movement amount d:response method
+                    jTextArea.append(kohzuCommand + "\n");
+                    core_.setSerialPortCommand(port_kohzu, kohzuCommand, kohzuTerminator);
+                    jTextArea.append("Send kohzu : " + kohzuCommand + "\n");
+                    jTextArea.append("\n");
+                }
+                else{
+                    kohzu_posZ = readKohzu(port_kohzu,z_axis);
+                    kohzu_posX = readKohzu(port_kohzu,x_axis);
+                    jLabel_x.setText(String.valueOf(kohzu_posX));
+                    jLabel_z.setText(String.valueOf(kohzu_posZ));
+                }
             }catch (Exception ex) {
                     Logger.getLogger(HiwinControlFrame.class.getName()).log(Level.SEVERE, null, ex);
                                   }  
+            
         }
     }
     public HiwinControlFrame(ScriptInterface gui) {
@@ -126,6 +137,10 @@ public class HiwinControlFrame extends javax.swing.JFrame {
         jComboBox_hiwin = new javax.swing.JComboBox();
         jRadioButton_enable = new javax.swing.JRadioButton();
         jRadioButton_disable = new javax.swing.JRadioButton();
+        jLabel14 = new javax.swing.JLabel();
+        jLabel15 = new javax.swing.JLabel();
+        jComboBox_Xaxis = new javax.swing.JComboBox();
+        jComboBox_Zaxis = new javax.swing.JComboBox();
         jButton_start = new javax.swing.JButton();
         jScrollPane2 = new javax.swing.JScrollPane();
         jTextArea = new javax.swing.JTextArea();
@@ -245,19 +260,39 @@ public class HiwinControlFrame extends javax.swing.JFrame {
             }
         });
 
+        jLabel14.setText("Z :");
+
+        jLabel15.setText("X :");
+
+        jComboBox_Xaxis.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "1", "2", "3", "4", "5", "6", "7", "8", "9" }));
+
+        jComboBox_Zaxis.setModel(new javax.swing.DefaultComboBoxModel(new String[] { "1", "2", "3", "4", "5", "6", "7", "8", "9" }));
+
         javax.swing.GroupLayout jPanel3Layout = new javax.swing.GroupLayout(jPanel3);
         jPanel3.setLayout(jPanel3Layout);
         jPanel3Layout.setHorizontalGroup(
             jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(jPanel3Layout.createSequentialGroup()
-                .addComponent(jLabel1)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(jComboBox_kohzu, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                        .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanel3Layout.createSequentialGroup()
+                            .addComponent(jLabel1)
+                            .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED))
+                        .addGroup(jPanel3Layout.createSequentialGroup()
+                            .addComponent(jLabel15)
+                            .addGap(28, 28, 28)))
+                    .addGroup(jPanel3Layout.createSequentialGroup()
+                        .addComponent(jLabel14)
+                        .addGap(30, 30, 30)))
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING, false)
+                    .addComponent(jComboBox_Xaxis, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jComboBox_kohzu, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jComboBox_Zaxis, 0, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addGap(18, 18, 18)
                 .addComponent(jLabel2)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(jComboBox_hiwin, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 136, Short.MAX_VALUE)
                 .addComponent(jRadioButton_enable)
                 .addGap(58, 58, 58)
                 .addComponent(jRadioButton_disable)
@@ -274,7 +309,15 @@ public class HiwinControlFrame extends javax.swing.JFrame {
                     .addComponent(jComboBox_hiwin, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jRadioButton_enable)
                     .addComponent(jRadioButton_disable))
-                .addContainerGap(17, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 9, Short.MAX_VALUE)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel15)
+                    .addComponent(jComboBox_Xaxis, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanel3Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel14)
+                    .addComponent(jComboBox_Zaxis, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18))
         );
 
         jButton_start.setText("Start");
@@ -446,7 +489,7 @@ public class HiwinControlFrame extends javax.swing.JFrame {
                             .addComponent(jScrollPane6, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jScrollPane4, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                             .addComponent(jScrollPane9, javax.swing.GroupLayout.Alignment.TRAILING, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))))
-                .addContainerGap(106, Short.MAX_VALUE))
+                .addContainerGap(44, Short.MAX_VALUE))
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -463,11 +506,11 @@ public class HiwinControlFrame extends javax.swing.JFrame {
                         .addComponent(jScrollPane2))
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(81, 81, 81)
+                        .addGap(62, 62, 62)
                         .addComponent(jButton_start, javax.swing.GroupLayout.PREFERRED_SIZE, 83, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(42, 42, 42)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                         .addComponent(jButton_stop, javax.swing.GroupLayout.PREFERRED_SIZE, 83, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 69, Short.MAX_VALUE)))
+                        .addGap(56, 56, 56)))
                 .addContainerGap())
         );
         layout.setVerticalGroup(
@@ -476,19 +519,15 @@ public class HiwinControlFrame extends javax.swing.JFrame {
                 .addContainerGap()
                 .addComponent(jPanel3, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                        .addComponent(jButton_stop, javax.swing.GroupLayout.PREFERRED_SIZE, 72, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addComponent(jButton_start, javax.swing.GroupLayout.PREFERRED_SIZE, 72, javax.swing.GroupLayout.PREFERRED_SIZE))
-                    .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, 75, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(jPanel2, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 0, Short.MAX_VALUE))
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(9, 9, 9)
-                        .addComponent(jScrollPane2)))
+                    .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(jButton_start, javax.swing.GroupLayout.PREFERRED_SIZE, 72, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addComponent(jButton_stop, javax.swing.GroupLayout.PREFERRED_SIZE, 72, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(jPanel1, javax.swing.GroupLayout.PREFERRED_SIZE, 75, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(jPanel2, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jScrollPane2))
                 .addContainerGap())
         );
 
@@ -502,13 +541,20 @@ public class HiwinControlFrame extends javax.swing.JFrame {
             jRadioButton_enable.setSelected(true);
             port_kohzu = jComboBox_kohzu.getSelectedItem().toString();
             port_hiwin = jComboBox_hiwin.getSelectedItem().toString();
-            if (port_kohzu == port_hiwin) {
+            x_axis = jComboBox_Xaxis.getSelectedItem().toString();
+            z_axis = jComboBox_Zaxis.getSelectedItem().toString();
+            if ((port_kohzu == port_hiwin) | (x_axis == z_axis)) {
                 port_enable = false;
-                JOptionPane.showMessageDialog(null, "COM ports should be different.\n Please select again.");
+                JOptionPane.showMessageDialog(null, "COM ports or axes should be different.\n Please select again.");
                 jRadioButton_enable.setSelected(false);
                 jRadioButton_disable.setSelected(true);
             }
             else{//show kohzu information on the screen
+                jTextArea.append("X axis: " + x_axis + "\n");
+                jTextArea.append("Z axis: " + z_axis + "\n");
+                jTextArea.append("Kohzu port: " + port_kohzu + "\n");
+                jTextArea.append("Hiwin port: " + port_hiwin + "\n");
+                jTextArea.append("\n");
                 kohzu_posZ = readKohzu(port_kohzu, z_axis);
                 kohzu_posX = readKohzu(port_kohzu, x_axis);
                 jLabel_x.setText(String.valueOf(kohzu_posX));
@@ -525,6 +571,8 @@ public class HiwinControlFrame extends javax.swing.JFrame {
         jRadioButton_enable.setSelected(false);
         if (port_enable){
             port_enable = false;
+            jTextArea.append("Ports are disable.\n");
+            jTextArea.append("\n");
             //stop timer
         }
         else{
@@ -655,6 +703,8 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     private javax.swing.JButton jButton_select;
     private javax.swing.JButton jButton_start;
     private javax.swing.JButton jButton_stop;
+    private javax.swing.JComboBox jComboBox_Xaxis;
+    private javax.swing.JComboBox jComboBox_Zaxis;
     private javax.swing.JComboBox jComboBox_hiwin;
     private javax.swing.JComboBox jComboBox_kohzu;
     private javax.swing.JComboBox jComboBox_sample;
@@ -663,6 +713,8 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel11;
     private javax.swing.JLabel jLabel12;
     private javax.swing.JLabel jLabel13;
+    private javax.swing.JLabel jLabel14;
+    private javax.swing.JLabel jLabel15;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
