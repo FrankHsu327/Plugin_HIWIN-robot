@@ -29,12 +29,23 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     String port_kohzu;
     String port_hiwin;
     boolean port_enable = false;
-    boolean kohzu_moving = false;
-
+    boolean isKohzuTimer = false;
+    boolean isHiwinTimer = false;
+   
+    
+    // command
     String hiwinTerminator = "}";
     String kohzuTerminator = "\r\n";
     String hiwinCommand = "";
     String kohzuCommand = "";
+    CharVector HIWIN_Read;
+    char ch;
+    int comma_count = 0;
+    CharVector kohzu_Read_Buffer;
+    
+    int STOP = 1;//0 run, 1 stop
+    int STEP = 0;
+    int STEP_FINISH = 0;//0 not finish, 1 finish
     
     Timer kohzu_timer;
     Timer hiwin_timer;
@@ -43,12 +54,18 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     String x_axis = "1"; //02A limit 291900 
     
     String Target; 
-    
+    //kohzu parameter
     int kohzu_posZ = 0;
     int kohzu_posX = 0;
     int kohzu_speedTable = 8;
     int X_target_pos = 291900;
     int Z_target_pos = -251000;
+    
+    
+    //Hiwin parameter
+    int NowStatus = 1;
+    int n = 0;
+    
     /**
      * Creates new form HiwinControlFrame
      */
@@ -81,26 +98,138 @@ public class HiwinControlFrame extends javax.swing.JFrame {
         return Integer.MIN_VALUE;
     }   
     public class task_kohzu extends TimerTask {
+        /*
+         * Command has been sent when start button is clicked. 
+         * Timer just for checking position and turn on hiwin timer when target positions arrive.
+         */
         @Override
         public void run() {
-            try{               
-                if (!kohzu_moving){
-                    kohzuCommand = "\002APS" + z_axis + "/" + kohzu_speedTable + "/" + Z_target_pos + "/" + "1";//APSa/b/c/d  a:axis b:speed table number c:movement amount d:response method
-                    jTextArea.append(kohzuCommand + "\n");
-                    core_.setSerialPortCommand(port_kohzu, kohzuCommand, kohzuTerminator);
-                    jTextArea.append("Send kohzu : " + kohzuCommand + "\n");
-                    jTextArea.append("\n");
-                }
-                else{
-                    kohzu_posZ = readKohzu(port_kohzu,z_axis);
-                    kohzu_posX = readKohzu(port_kohzu,x_axis);
-                    jLabel_x.setText(String.valueOf(kohzu_posX));
-                    jLabel_z.setText(String.valueOf(kohzu_posZ));
-                }
+            try{ 
+                kohzu_posZ = readKohzu(port_kohzu,z_axis);
+                kohzu_posX = readKohzu(port_kohzu,x_axis);
+                jLabel_x.setText(String.valueOf(kohzu_posX));
+                jLabel_z.setText(String.valueOf(kohzu_posZ));
+                if(kohzu_posZ == Z_target_pos && kohzu_posX == X_target_pos){
+                    hiwin_timer = new Timer();
+                    hiwin_timer.schedule(new task_hiwin(), 50, 1000);
+                }             
             }catch (Exception ex) {
                     Logger.getLogger(HiwinControlFrame.class.getName()).log(Level.SEVERE, null, ex);
-                                  }  
-            
+                                  }              
+        }
+    }
+    public class task_hiwin extends TimerTask {
+        @Override
+        public void run() {          
+                TM_HIWIN = true;
+                if(NowStatus == 3){
+                    STOP = 0;
+                    STEP = 1;
+                    STEP_FINISH = 0;
+                    hiwinCommand = "{" + Target + "," + STOP + "," + STEP + "," + STEP_FINISH + "," + "0" + "," + "0" + "," + "0";                   
+                    try {                        
+                        core_.setSerialPortCommand(port_hiwin, hiwinCommand, hiwinTerminator);  
+                    } catch (Exception ex) {
+                        Logger.getLogger(HiwinControlFrame.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                    NowStatus = 4;
+                }
+                else if(NowStatus == 4){//4: HIWIN programming                    
+                    try {                                                  
+                        HIWIN_Read = core_.readFromSerialPort(port_hiwin);
+                        if(HIWIN_Read.capacity()!=0){
+                            for(int i=0;i<HIWIN_Read.capacity();i++){
+                                ch = HIWIN_Read.get(i);
+                                if(ch == ','){
+                                    comma_count++;
+                                }
+                                if(comma_count == 3){
+                                    STEP_FINISH = Character.getNumericValue(HIWIN_Read.get(i+1));
+                                    comma_count = 0;
+                                    ch ='\0';
+                                    break;
+                                }                                
+                            }
+                        }                        
+
+                        } catch (Exception ex) {
+                            Logger.getLogger(HiwinControlFrame.class.getName()).log(Level.SEVERE, null, ex);
+                        }                                                   
+                    switch(STEP){//Step value
+                        //<editor-fold defaultstate="collapsed" desc=" STEP Case ">
+                        case 1:
+                            if(STEP_FINISH == 1){//==1 means step finished
+                                if(EMG == true){
+                                    STOP = 1;
+                                }
+                                else{
+                                    STOP = 0;
+                                }
+                                STEP = 2;
+                                if(Message_target == 1){//grab target beside placed one
+                                    Message_target = 8;
+                                }
+                                else{
+                                    Message_target--;
+                                }                                    
+                            }
+                            break;
+                        case 2:
+                             if(STEP_FINISH == 1){
+                                if(EMG == true){
+                                    STOP = 1;
+                                }
+                                else{
+                                    STOP = 0;
+                                }
+                                STEP = 3;
+                                if(Message_target == 8){//grab target beside placed one
+                                    Message_target = 1;
+                                }
+                                else{
+                                    Message_target++;
+                                }                                   
+                            }
+                            break;
+                        case 3:
+                             if(STEP_FINISH == 1){
+                                if(EMG == true){
+                                    STOP = 1;
+                                }
+                                else{
+                                    STOP = 0;
+                                }
+                                STEP = 4;                           
+                            }
+                            break;
+                        case 4:
+                             if(STEP_FINISH == 1){
+                                STOP = 1;
+                                STEP = 5;                          
+                                TM_HIWIN = false;              
+                                Timer_HIWIN.cancel();        
+                                Timer_BackPos.schedule(new kohzu_pos(), 50, 1000);  
+                                NowStatus = 5;
+                                latch_kohzu = true;
+                            }                           
+                            break;                                   
+                        default:
+                            break;
+                        //</editor-fold>  
+                    };
+                    readySig.setBackground(Color.YELLOW);
+                    jLabel_status.setText("Operating" + ": STEP " + STEP);                   
+                    if(STEP_FINISH == 1){
+                        STEP_FINISH = 0;  
+                        hiwinCommand = "{" + Target + "," + STOP + "," + STEP + "," + STEP_FINISH + "," + "0" + "," + "0" + "," + "0";
+                        try {                             
+                            core_.setSerialPortCommand(port_hiwin, hiwinCommand, hiwinTerminator);                                           
+                        } catch (Exception ex) {
+                            Logger.getLogger(HiwinControlFrame.class.getName()).log(Level.SEVERE, null, ex);
+                        }
+                    }
+
+                }               
         }
     }
     public HiwinControlFrame(ScriptInterface gui) {
@@ -584,6 +713,7 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_jRadioButton_disableActionPerformed
 
     private void jButton_selectActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_selectActionPerformed
+        //Select sample number
         if(jButton_select.isEnabled()){
             Target = jComboBox_sample.getSelectedItem().toString();
             jComboBox_sample.setEnabled(false);
@@ -620,6 +750,7 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_jButton_selectActionPerformed
 
     private void jButton_cancelActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_cancelActionPerformed
+        // Cancel selected sample number
         if(jButton_cancel.isEnabled()){
             Color color = new Color(255,255,255);
             switch(Integer. parseInt(Target)){
@@ -657,11 +788,69 @@ public class HiwinControlFrame extends javax.swing.JFrame {
     }//GEN-LAST:event_jButton_cancelActionPerformed
 
     private void jButton_startActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_startActionPerformed
-        // TODO add your handling code here:
+        // 3 situation kohzu timer: off hiwin timer: off
+        //             kohzu timer: on hiwin timer: off
+        //             kohzu timer: off hiwin timer: on
+        //start first by moving kohzu stage
+        if(isKohzuTimer == false & isHiwinTimer == false){
+            isKohzuTimer = true;
+            kohzu_timer = new Timer();
+            jButton_stop.setEnabled(true);
+            jButton_start.setEnabled(false);
+
+            //send kohzu target command 
+            kohzuCommand = "\002APS" + z_axis + "/" + kohzu_speedTable + "/" + Z_target_pos + "/" + "1";//APSa/b/c/d  a:axis b:speed table number c:movement amount d:response method
+            jTextArea.append(kohzuCommand + "\n");
+            try{
+                core_.setSerialPortCommand(port_kohzu, kohzuCommand, kohzuTerminator);
+            }catch (Exception ex) {
+                        Logger.getLogger(HiwinControlFrame.class.getName()).log(Level.SEVERE, null, ex);
+                                  }  
+            //show message on panel
+            jTextArea.append("Send kohzu : " + kohzuCommand + "\n");
+            jTextArea.append("\n");
+
+            //Then start kohzu timer
+            kohzu_timer.schedule(new task_kohzu(), 50, 1000);
+        }
+        else if(isKohzuTimer == true & isHiwinTimer == false){
+            kohzu_timer = new Timer();
+            jButton_stop.setEnabled(true);
+            jButton_start.setEnabled(false);
+
+            //send kohzu target command 
+            kohzuCommand = "\002APS" + z_axis + "/" + kohzu_speedTable + "/" + Z_target_pos + "/" + "1";//APSa/b/c/d  a:axis b:speed table number c:movement amount d:response method
+            try{
+                core_.setSerialPortCommand(port_kohzu, kohzuCommand, kohzuTerminator);
+            }catch (Exception ex) {
+                        Logger.getLogger(HiwinControlFrame.class.getName()).log(Level.SEVERE, null, ex);
+                                  }  
+            //show message on panel
+            jTextArea.append("Send kohzu : " + kohzuCommand + "\n");
+            jTextArea.append("\n");
+
+            //Then start kohzu timer
+            kohzu_timer.schedule(new task_kohzu(), 50, 1000);
+        }
+        else if(isKohzuTimer == false & isHiwinTimer == true){
+            hiwin_timer = new Timer();
+            hiwin_timer.schedule(new task_hiwin(), 50, 1000);
+        }
+        
     }//GEN-LAST:event_jButton_startActionPerformed
 
     private void jButton_stopActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButton_stopActionPerformed
-        // TODO add your handling code here:
+        //Stop kohzu timer of hiwin timer, depend on which timer is on.
+        jButton_start.setEnabled(true);
+        jButton_stop.setEnabled(false);
+        if(isKohzuTimer){
+            kohzu_timer.cancel();
+        }
+        else if(isHiwinTimer){
+            hiwin_timer.cancel();
+        }
+        jTextArea.append("Process stop.\n");
+        jTextArea.append("\n");
     }//GEN-LAST:event_jButton_stopActionPerformed
 
     /**
